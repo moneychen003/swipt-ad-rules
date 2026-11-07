@@ -1,0 +1,135 @@
+name: Build and publish Swipt subscription
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: swipt-subscription
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      base: ${{ steps.plan.outputs.base }}
+      upstream: ${{ steps.plan.outputs.upstream }}
+      code: ${{ steps.plan.outputs.code }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Compare official and local revisions
+        id: plan
+        run: |
+          official=https://github.com/swipt-automation/official-swiplets.git
+          upstream=$(git ls-remote --exit-code "$official" refs/heads/main | cut -f1)
+          [[ $upstream =~ ^[0-9a-f]{40}$ ]]
+          base=$(git ls-remote origin refs/heads/subscription | cut -f1)
+          code=1
+          if [[ -n $base ]]; then
+            git fetch --no-tags --depth=1 origin "$base"
+            git show "$base:release.json" > "$RUNNER_TEMP/previous.json"
+            if jq -e --arg upstream "$upstream" --arg source "$GITHUB_SHA" \
+              '.upstream == $upstream and .source == $source' "$RUNNER_TEMP/previous.json" >/dev/null; then
+              echo 'publish=false' >> "$GITHUB_OUTPUT"
+              echo 'Official and local revisions are already published.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            previous=$(jq -er .versionCode "$RUNNER_TEMP/previous.json")
+            [[ $previous =~ ^[1-9][0-9]{0,7}$ ]]
+            code=$((previous + 1))
+          fi
+          printf 'publish=true\nbase=%s\nupstream=%s\ncode=%s\n' "$base" "$upstream" "$code" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.plan.outputs.publish == 'true'
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.plan.outputs.publish == 'true'
+        with:
+          bun-version: 1.4.4
+      - name: Apply local rules and build
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          UPSTREAM: ${{ steps.plan.outputs.upstream }}
+          CODE: ${{ steps.plan.outputs.code }}
+        run: |
+          git init -q "$RUNNER_TEMP/official"
+          git -C "$RUNNER_TEMP/official" fetch --no-tags --depth=1 https://github.com/swipt-automation/official-swiplets.git "$UPSTREAM"
+          git -C "$RUNNER_TEMP/official" checkout --detach -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/official" rev-parse HEAD)" = "$UPSTREAM"
+          scripts/build-release.sh "$RUNNER_TEMP/official" "$CODE" "$RUNNER_TEMP/staged" "$GITHUB_SHA"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.plan.outputs.publish == 'true'
+        with:
+          name: checked-subscription
+          path: ${{ runner.temp }}/staged
+          if-no-files-found: error
+
+  publish:
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.publish == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: checked-subscription
+          path: ${{ runner.temp }}/staged
+      - name: Publish versioned package and stable subscription
+        env:
+          BASE: ${{ needs.build.outputs.base }}
+          UPSTREAM: ${{ needs.build.outputs.upstream }}
+          CODE: ${{ needs.build.outputs.code }}
+        run: |
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
+          test "$(git ls-remote origin refs/heads/subscription | cut -f1)" = "$BASE"
+          staged="$RUNNER_TEMP/staged"
+          [[ $CODE =~ ^[1-9][0-9]{0,7}$ ]]
+          version="1.0.$CODE"
+          archive="packages/$version/moneychen-splash-skip.swiplet"
+          jq -e --arg v "$version" --arg a "$archive" --arg u "$UPSTREAM" --arg c "$GITHUB_SHA" \
+            '.version == $v and .archive == $a and .upstream == $u and .source == $c' "$staged/release.json" >/dev/null
+          digest=$(jq -er .sha256 "$staged/release.json")
+          [[ $digest =~ ^[0-9a-f]{64}$ ]]
+          (cd "$staged" && printf '%s  %s\n' "$digest" "$archive" | sha256sum -c)
+          jq -e --arg url "$archive" --arg digest "$digest" \
+            '.swiplets | length == 1 and .[0].url == $url and .[0].sha256 == $digest' "$staged/swiplets.json" >/dev/null
+          if [[ -n $BASE ]]; then
+            git fetch --no-tags --depth=1 origin "$BASE"
+            git switch --detach "$BASE"
+          else
+            git switch --orphan subscription
+          fi
+          test ! -e "packages/$version"
+          mkdir -p "packages/$version"
+          cp "$staged/$archive" "$archive"
+          cp "$staged/packages/$version/source.tar.gz" "packages/$version/source.tar.gz"
+          cp "$staged/swiplets.json" "$staged/release.json" .
+          git add swiplets.json release.json "packages/$version"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "Publish Swipt subscription $version"
+          git push origin HEAD:refs/heads/subscription
+          revision=$(git rev-parse HEAD)
+          test "$(git ls-remote origin refs/heads/subscription | cut -f1)" = "$revision"
+          for file in swiplets.json "$archive" "packages/$version/source.tar.gz"; do
+            curl -fsSL --retry 4 --retry-all-errors --max-time 20 \
+              "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$revision/$file" -o "$RUNNER_TEMP/published"
+            cmp "$file" "$RUNNER_TEMP/published"
+          done
+          printf 'Published %s from official revision %s.\n' "$version" "$UPSTREAM" >> "$GITHUB_STEP_SUMMARY"

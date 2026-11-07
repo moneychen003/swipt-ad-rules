@@ -119,15 +119,16 @@ jobs:
           test ! -e "packages/$version"
           mkdir -p "packages/$version"
           cp "$staged/$archive" "$archive"
+          cp "$archive" moneychen-splash-skip.swiplet
           cp "$staged/packages/$version/source.tar.gz" "packages/$version/source.tar.gz"
           cp "$staged/swiplets.json" "$staged/release.json" .
-          git add swiplets.json release.json "packages/$version"
+          git add swiplets.json release.json moneychen-splash-skip.swiplet "packages/$version"
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -m "Publish Swipt subscription $version"
           git push origin HEAD:refs/heads/subscription
           revision=$(git rev-parse HEAD)
           test "$(git ls-remote origin refs/heads/subscription | cut -f1)" = "$revision"
-          for file in swiplets.json "$archive" "packages/$version/source.tar.gz"; do
+          for file in swiplets.json moneychen-splash-skip.swiplet "$archive" "packages/$version/source.tar.gz"; do
             curl -fsSL --retry 4 --retry-all-errors --max-time 20 \
               "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$revision/$file" -o "$RUNNER_TEMP/published"
             cmp "$file" "$RUNNER_TEMP/published"

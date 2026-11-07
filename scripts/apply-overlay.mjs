@@ -10,6 +10,7 @@ const rulesPath = join(dir, "src/rules.ts");
 const extensionPath = join(dir, "src/extension.ts");
 const packagePath = join(dir, "package.json");
 const sourcePath = join(root, "package.json");
+const localesPath = join(dir, "locales.json");
 const read = path => readFileSync(path, "utf8");
 const one = (source, anchor, updated) => {
   const offset = source.indexOf(anchor);
@@ -53,6 +54,19 @@ watcher = one(watcher, '        if ((error as Error).name !== "TimeoutError") {\
   '        if ((error as Error).name !== "TimeoutError") {\n          throw error;\n        }\n        if (exactTree) return;');
 watcher = one(watcher, "      if (still !== null) {", "      if (still !== null) {\n        if (exactTree) return;");
 extension = extension.slice(0, watchStart) + watcher + extension.slice(watchEnd);
+// Icons are optional decoration. A native lookup failure must not hide the app list or records.
+const iconAnchor = 'export interface SupportedApp {';
+extension = one(extension, iconAnchor,
+  'async function optionalAppIcon(bundleId: string, signal: AbortSignal) {\n' +
+  '  try { return (await device.applicationIcon(bundleId, { signal })).uri; }\n' +
+  '  catch { return undefined; }\n' +
+  '}\n\n' + iconAnchor);
+extension = one(extension, '  icon: string;', '  icon?: string;');
+extension = one(extension, 'icon: (await device.applicationIcon(bundleId, { signal })).uri,',
+  'icon: await optionalAppIcon(bundleId, signal),');
+extension = one(extension, ': (await device.applicationIcon(bundleId, { signal })).uri,',
+  ': await optionalAppIcon(bundleId, signal),');
+
 
 const pkg = JSON.parse(read(packagePath));
 const source = JSON.parse(read(sourcePath));
@@ -61,6 +75,7 @@ if (pkg.swiplet?.id !== "skip-chinese-ads" || !source.workspaces?.includes("skip
 pkg.version = version;
 Object.assign(pkg.swiplet, {
   id: "moneychen-splash-skip", versionCode, name: "MoneyChen Splash Helper",
+  updateURL: "https://raw.githubusercontent.com/moneychen003/swipt-ad-rules/subscription/moneychen-splash-skip.swiplet",
   localizedNames: { "zh-Hans": "陈前开屏助手", "zh-Hant": "陳前開屏助手", "zh-Hant-HK": "陳前開屏助手" },
 });
 source.source = {
@@ -72,3 +87,8 @@ writeFileSync(rulesPath, rules);
 writeFileSync(extensionPath, extension);
 writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + "\n");
 writeFileSync(sourcePath, JSON.stringify(source, null, 2) + "\n");
+const locales = JSON.parse(read(localesPath));
+for (const [lang, locale] of Object.entries(locales)) {
+  locale.title = lang === "zh-Hans" ? "陈前开屏助手" : lang.startsWith("zh-") ? "陳前開屏助手" : "MoneyChen Splash Helper";
+}
+writeFileSync(localesPath, JSON.stringify(locales, null, 2) + "\n");

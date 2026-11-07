@@ -8,7 +8,7 @@
 
 雪球规则只在 `com.xueqiu` 识别右下角带倒计时的「跳过广告」控件，使用原项目的启动时间窗口，一次只点一下。其它 App 保留上游行为。
 
-[更新工作流](https://github.com/moneychen003/swipt-ad-rules/actions/workflows/sync.yml) 每 6 小时核对一次上游提交，也能手动运行。通过检查才发布独立版本，订阅地址不变。没有变化时不发布；如上游结构改动使补丁无法安全合入，本次失败并保留上一版。设备端在 Swipt 检查来源更新时获取新包。
+[更新工作流](https://github.com/moneychen003/swipt-ad-rules/actions/workflows/sync.yml) 每 6 小时核对一次上游提交，也能手动运行。通过检查才发布独立版本，订阅地址不变。没有变化时不发布；如上游结构改动使补丁无法安全合入，本次失败并保留上一版。设备端通过固定更新地址检查新包；Swipt 显示更新时可在 App 内安装。
 
 [发布记录](https://github.com/moneychen003/swipt-ad-rules/blob/subscription/release.json) 包含固定上游提交、包哈希和对应源代码归档。授权与上游声明见 [LICENSE](LICENSE)。可按记录克隆该上游提交，用 Bun 1.4.4、Node.js 24 运行 `scripts/build-release.sh <干净上游目录> <版本号最后一段> <绝对输出目录> <本仓库提交>` 重建。
 

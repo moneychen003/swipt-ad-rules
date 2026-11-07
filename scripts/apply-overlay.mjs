@@ -40,14 +40,29 @@ for (const app of exactSplashRules.keys()) {
 
 let extension = read(extensionPath);
 const importAnchor = '} from "./rules";';
-extension = one(extension, importAnchor, importAnchor + '\nimport { exactSplashRules, isExactSplashFrame } from "./moneychen-exact-splash";');
+extension = one(extension, importAnchor, importAnchor + '\nimport { exactSplashRules, isExactSplashFrame, amapSplashRegion } from "./moneychen-exact-splash";');
 extension = one(extension,
   "  const selectors = (fuzzy ? sdkRules : rules[app].flat()).map((rule) => ({",
   "  const exactRule = exactSplashRules.get(app);\n  const exactTree = exactRule !== undefined;\n" +
   "  const selectors = (exactRule ? [exactRule.selector] : fuzzy ? sdkRules : rules[app].flat()).map((rule) => ({");
 extension = one(extension, "    !closePopups\n", "    !closePopups || exactTree\n");
 extension = one(extension, "    const watchers = noRecordingApps.has(app)\n",
-  "    const watchers = exactTree || noRecordingApps.has(app)\n");
+  "    const watchers = exactRule?.method === \"screen\"\n" +
+  "      ? [watchScreen(amapSplashRegion(screenSize), exactRule.screenPattern)]\n" +
+  "      : exactTree || noRecordingApps.has(app)\n");
+
+const screenStart = extension.indexOf("  const watchScreen = async (region: Rect) => {");
+const screenEnd = extension.indexOf("\n  const watchTree", screenStart);
+if (screenStart < 0 || screenEnd < 0) throw new Error("Cannot identify official screen tap path.");
+let screenWatcher = extension.slice(screenStart, screenEnd);
+screenWatcher = one(screenWatcher, "(region: Rect) => {", "(region: Rect, pattern = skipText) => {");
+if (screenWatcher.split("screen.find(skipText").length !== 4) throw new Error("Official screen recognizer changed.");
+screenWatcher = screenWatcher.replaceAll("screen.find(skipText", "screen.find(pattern");
+screenWatcher = one(screenWatcher, "      const point = centerOf(frame);",
+  "      if (exactRule?.method === \"screen\" && (lastTap !== undefined || !isExactSplashFrame(frame, screenSize, exactRule.corner))) return;\n" +
+  "      const point = centerOf(frame);");
+extension = extension.slice(0, screenStart) + screenWatcher + extension.slice(screenEnd);
+extension = one(extension, "...regions.map(watchScreen),", "...regions.map((region) => watchScreen(region)),");
 
 const watchStart = extension.indexOf("  const watchSdk = async () => {");
 const watchEnd = extension.indexOf("\n  const watchPopups", watchStart);

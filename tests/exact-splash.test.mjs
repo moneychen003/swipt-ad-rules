@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { exactSplashRules, isExactSplashFrame } from "../overlay/exact-splash.ts";
+import { exactSplashRules, isExactSplashFrame, amapSplashRegion } from "../overlay/exact-splash.ts";
 
 const xueqiu = exactSplashRules.get("com.xueqiu");
 const amap = exactSplashRules.get("com.autonavi.amap");
@@ -28,4 +28,14 @@ test("requires the matching corner and rejects large, off-screen, or status-bar 
     assert.equal(isExactSplashFrame(frame, screen, xueqiu.corner), false);
   for (const frame of [[329, 12, 94, 30], [10, 87, 94, 30], [270, 65, 160, 110], [350, 85, 95, 30]])
     assert.equal(isExactSplashFrame(frame, screen, amap.corner), false);
+});
+
+test("Amap OCR uses the splash wording and stays inside its observed area", () => {
+  assert.equal(amap.method, "screen");
+  assert.equal(xueqiu.method, "tree");
+  for (const title of ["4 跳过广告", "跳过广告", "跳 过 广 告"]) assert.match(title, amap.screenPattern);
+  for (const title of ["跳过动画", "广告", "重新导航"]) assert.doesNotMatch(title, amap.screenPattern);
+  const [x, y, w, h] = amapSplashRegion(screen);
+  assert.ok(x <= 329 && y <= 87 && x + w >= 423 && y + h >= 117);
+  assert.ok(y >= 60 && y + h < 160);
 });

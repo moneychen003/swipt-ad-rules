@@ -16,8 +16,8 @@
         "zh-Hant": "陳前開屏助手",
         "zh-Hant-HK": "陳前開屏助手"
       },
-      "version": "1.0.4",
-      "versionCode": 4,
+      "version": "1.0.5",
+      "versionCode": 5,
       "icon": {
         "color": "red",
         "symbol": "forward.end.fill"
@@ -35,9 +35,9 @@
           "title": "List Recorded Apps"
         }
       ],
-      "url": "packages/1.0.4/moneychen-splash-skip.swiplet",
-      "size": 155005,
-      "sha256": "44b24c2dd1db641754501c97eed97e7aaf8f2ea75cce4780926bd86e090ca3bb"
+      "url": "packages/1.0.5/moneychen-splash-skip.swiplet",
+      "size": 155309,
+      "sha256": "1f34afc886b515b53b50fbe4b04347c0b382e914f2b2159c137047e7d88b385d"
     }
   ]
 }

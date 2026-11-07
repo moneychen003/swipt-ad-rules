@@ -1,10 +1,10 @@
 {
-  "version": "1.0.1",
-  "versionCode": 1,
+  "version": "1.0.2",
+  "versionCode": 2,
   "upstream": "c15eefc38bced2c3414cb584903328bd2bac5b19",
-  "source": "356a1f0e741b1b6d5a64eeefaf93291d53fef221",
-  "archive": "packages/1.0.1/moneychen-splash-skip.swiplet",
-  "sha256": "7f973e7b4f52942dc158453d8abe6f304716a675f50f417320732129800c4f6a",
-  "size": 155125,
-  "correspondingSource": "packages/1.0.1/source.tar.gz"
+  "source": "86ba2b15ddd204eb5395f7d046f5919235dc504b",
+  "archive": "packages/1.0.2/moneychen-splash-skip.swiplet",
+  "sha256": "6af8ea8651d9e47a936e9d656fe6a44d7c8ed0bd785c8a8bafee4c86ee3aa999",
+  "size": 154679,
+  "correspondingSource": "packages/1.0.2/source.tar.gz"
 }

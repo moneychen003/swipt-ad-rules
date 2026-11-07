@@ -1,0 +1,10 @@
+{
+  "version": "1.0.1",
+  "versionCode": 1,
+  "upstream": "c15eefc38bced2c3414cb584903328bd2bac5b19",
+  "source": "356a1f0e741b1b6d5a64eeefaf93291d53fef221",
+  "archive": "packages/1.0.1/moneychen-splash-skip.swiplet",
+  "sha256": "7f973e7b4f52942dc158453d8abe6f304716a675f50f417320732129800c4f6a",
+  "size": 155125,
+  "correspondingSource": "packages/1.0.1/source.tar.gz"
+}

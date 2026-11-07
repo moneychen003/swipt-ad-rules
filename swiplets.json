@@ -1,0 +1,42 @@
+{
+  "name": "MoneyChen Ad Rules",
+  "localizedNames": {
+    "zh-Hans": "陈前去广告规则",
+    "zh-Hant": "陳前去廣告規則"
+  },
+  "icon": {
+    "symbol": "forward.end.fill"
+  },
+  "swiplets": [
+    {
+      "id": "moneychen-splash-skip",
+      "name": "MoneyChen Splash Helper",
+      "localizedNames": {
+        "zh-Hans": "陈前开屏助手",
+        "zh-Hant": "陳前開屏助手",
+        "zh-Hant-HK": "陳前開屏助手"
+      },
+      "version": "1.0.1",
+      "versionCode": 1,
+      "icon": {
+        "color": "red",
+        "symbol": "forward.end.fill"
+      },
+      "interface": true,
+      "service": true,
+      "actions": [
+        {
+          "name": "supportedApps",
+          "title": "List Supported Apps"
+        },
+        {
+          "name": "recordedApps",
+          "title": "List Recorded Apps"
+        }
+      ],
+      "url": "packages/1.0.1/moneychen-splash-skip.swiplet",
+      "size": 155125,
+      "sha256": "7f973e7b4f52942dc158453d8abe6f304716a675f50f417320732129800c4f6a"
+    }
+  ]
+}

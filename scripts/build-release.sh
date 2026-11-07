@@ -9,7 +9,7 @@ source=${4:?source commit required}
 test -z "$(git -C "$upstream" status --porcelain)"
 revision=$(git -C "$upstream" rev-parse HEAD)
 test "$(bun --version)" = 1.4.4
-node --test "$repo/tests/xueqiu.test.mjs"
+node --test "$repo/tests/exact-splash.test.mjs"
 (cd "$upstream" && bun install --frozen-lockfile)
 node "$repo/scripts/apply-overlay.mjs" "$upstream" "$code"
 (cd "$upstream/skip-chinese-ads" && bun run check && bun run build)

@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
+import { exactSplashRules } from "../overlay/exact-splash.ts";
 
 const [root, codeArg] = process.argv.slice(2);
 const versionCode = Number(codeArg);
@@ -21,24 +22,29 @@ const one = (source, anchor, updated) => {
 
 let rules = read(rulesPath);
 const registry = "export const rules: Record<string, (Rule | Rule[])[]> = {";
-rules = one(rules, registry, 'import { xueqiuSkipRule } from "./moneychen-xueqiu";\n\n' + registry);
-const existing = [...rules.matchAll(/^\s*["']com\.xueqiu["']:\s*\[/gm)];
-if (existing.length === 1) {
-  const anchor = existing[0][0];
-  rules = one(rules, anchor, anchor + "xueqiuSkipRule, ");
-} else if (existing.length === 0 && !rules.includes("com.xueqiu")) {
-  rules = one(rules, registry, registry + '\n  "com.xueqiu": [xueqiuSkipRule],');
-} else {
-  throw new Error("Cannot merge the upstream Xueqiu entry safely.");
+rules = one(rules, registry, 'import { exactSplashRules } from "./moneychen-exact-splash";\n\n' + registry);
+for (const app of exactSplashRules.keys()) {
+  const quoted = JSON.stringify(app);
+  const selector = `exactSplashRules.get(${quoted})!.selector`;
+  const escaped = app.replaceAll(".", "\\.");
+  const existing = [...rules.matchAll(new RegExp(`^\\s*["']${escaped}["']:\\s*\\[`, "gm"))];
+  if (existing.length === 1) {
+    const anchor = existing[0][0];
+    rules = one(rules, anchor, anchor + selector + ", ");
+  } else if (existing.length === 0 && !rules.includes(quoted) && !rules.includes(`'${app}'`)) {
+    rules = one(rules, registry, registry + `\n  ${quoted}: [${selector}],`);
+  } else {
+    throw new Error(`Cannot merge the upstream entry for ${app} safely.`);
+  }
 }
 
 let extension = read(extensionPath);
 const importAnchor = '} from "./rules";';
-extension = one(extension, importAnchor, importAnchor + '\nimport { xueqiuBundleId, xueqiuSkipRule, isXueqiuSplashFrame } from "./moneychen-xueqiu";');
+extension = one(extension, importAnchor, importAnchor + '\nimport { exactSplashRules, isExactSplashFrame } from "./moneychen-exact-splash";');
 extension = one(extension,
   "  const selectors = (fuzzy ? sdkRules : rules[app].flat()).map((rule) => ({",
-  "  const exactTree = app === xueqiuBundleId;\n" +
-  "  const selectors = (exactTree ? [xueqiuSkipRule] : fuzzy ? sdkRules : rules[app].flat()).map((rule) => ({");
+  "  const exactRule = exactSplashRules.get(app);\n  const exactTree = exactRule !== undefined;\n" +
+  "  const selectors = (exactRule ? [exactRule.selector] : fuzzy ? sdkRules : rules[app].flat()).map((rule) => ({");
 extension = one(extension, "    !closePopups\n", "    !closePopups || exactTree\n");
 extension = one(extension, "    const watchers = noRecordingApps.has(app)\n",
   "    const watchers = exactTree || noRecordingApps.has(app)\n");
@@ -48,7 +54,7 @@ const watchEnd = extension.indexOf("\n  const watchPopups", watchStart);
 if (watchStart < 0 || watchEnd < 0) throw new Error("Cannot identify official tree tap path.");
 let watcher = extension.slice(watchStart, watchEnd);
 watcher = one(watcher, "      const point = centerOf(found.frame);",
-  "      if (exactTree && !isXueqiuSplashFrame(found.frame, screenSize)) return;\n" +
+  "      if (exactRule && !isExactSplashFrame(found.frame, screenSize, exactRule.corner)) return;\n" +
   "      const point = centerOf(found.frame);");
 watcher = one(watcher, '        await accessibility.tap(found, {\n          timeoutMs: remaining,\n          signal: watchSignal,\n        });',
   '        if (exactTree) {\n          await input.tap(point, { signal: watchSignal });\n' +
@@ -85,7 +91,7 @@ source.source = {
   name: "MoneyChen Ad Rules", localizedNames: { "zh-Hans": "陈前去广告规则", "zh-Hant": "陳前去廣告規則" },
   icon: { symbol: "forward.end.fill" },
 };
-copyFileSync(new URL("../overlay/xueqiu.ts", import.meta.url), join(dir, "src/moneychen-xueqiu.ts"));
+copyFileSync(new URL("../overlay/exact-splash.ts", import.meta.url), join(dir, "src/moneychen-exact-splash.ts"));
 writeFileSync(rulesPath, rules);
 writeFileSync(extensionPath, extension);
 writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + "\n");

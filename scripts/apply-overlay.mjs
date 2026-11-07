@@ -50,6 +50,9 @@ let watcher = extension.slice(watchStart, watchEnd);
 watcher = one(watcher, "      const point = centerOf(found.frame);",
   "      if (exactTree && !isXueqiuSplashFrame(found.frame, screenSize)) return;\n" +
   "      const point = centerOf(found.frame);");
+watcher = one(watcher, '        await accessibility.tap(found, {\n          timeoutMs: remaining,\n          signal: watchSignal,\n        });',
+  '        if (exactTree) {\n          await input.tap(point, { signal: watchSignal });\n' +
+  '        } else {\n          await accessibility.tap(found, { timeoutMs: remaining, signal: watchSignal });\n        }');
 watcher = one(watcher, '        if ((error as Error).name !== "TimeoutError") {\n          throw error;\n        }',
   '        if ((error as Error).name !== "TimeoutError") {\n          throw error;\n        }\n        if (exactTree) return;');
 watcher = one(watcher, "      if (still !== null) {", "      if (still !== null) {\n        if (exactTree) return;");
